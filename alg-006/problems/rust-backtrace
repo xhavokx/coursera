@@ -1,0 +1,21 @@
+#!/bin/bash
+ 
+### NOTE ### You probably don't need this anymore!
+# Just set RUST_BACKTRACE=1
+ 
+# Usage: rust-backtrace ./my-rust-prog args...
+ 
+exec gdb -batch -n -x /dev/fd/3 --args "$@" 3<<ENDGDB
+set height 0
+set breakpoint pending on
+ 
+break rust_fail
+ 
+commands 1
+backtrace
+quit
+end
+ 
+run
+
+ENDGDB
