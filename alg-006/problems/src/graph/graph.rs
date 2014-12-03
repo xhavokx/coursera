@@ -28,8 +28,14 @@ impl Graph {
     fn edge_from_string(line: Option<String>) -> Option<(uint,uint,uint)> {
         match line {
             Some(string) => {
-                let nums: Vec<uint> = string.as_slice().trim().split(' ')
-                    .map(|s| from_str(s.trim())).filter(|s| s.is_some()).map(|s| s.unwrap()).collect();
+                let splits: Vec<&str> = string.as_slice().trim().words().map(|x| x).collect();
+                println!("Splits:");
+                for s in splits.iter() {
+                    println!("    '{}'", s)
+                }
+                let nums = vec![];
+//                let nums: Vec<uint> = string.as_slice().trim().split(' ')
+//                    .map(|s| from_str(s.trim())).filter(|s| s.is_some()).map(|s| s.unwrap()).collect();
                 match nums.len() {
                     2 => return Some((nums[0], nums[1], 1)),
                     _ => return None

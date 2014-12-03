@@ -1,2 +1,0 @@
-mod greetings;
-mod farewells;
