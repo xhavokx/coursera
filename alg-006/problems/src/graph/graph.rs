@@ -7,6 +7,7 @@ use std::fmt::Show;
 use std::fmt;
 
 use graph::node::Node;
+use heap;
 
 pub struct Graph {
     nodes: HashMap<uint, Node>,
@@ -25,23 +26,24 @@ impl Graph {
         self.edges.len()
     }
 
-    fn edge_from_string(line: Option<String>) -> Option<(uint,uint,uint)> {
+    fn edges_from_string(line: Option<String>) -> Vec<(uint,uint,uint)> {
         match line {
             Some(string) => {
-                let splits: Vec<&str> = string.as_slice().trim().words().map(|x| x).collect();
-                println!("Splits:");
-                for s in splits.iter() {
-                    println!("    '{}'", s)
-                }
-                let nums = vec![];
-//                let nums: Vec<uint> = string.as_slice().trim().split(' ')
-//                    .map(|s| from_str(s.trim())).filter(|s| s.is_some()).map(|s| s.unwrap()).collect();
-                match nums.len() {
-                    2 => return Some((nums[0], nums[1], 1)),
-                    _ => return None
+                let nums: Vec<(uint,uint)> = string.as_slice().trim().words().map(|x| x)
+                    .map(|x| x.trim().split(',').map(|s| from_str(s.trim())).map(|x| x.unwrap()).collect::<Vec<uint>>())
+                    .map(|x| match x.as_slice() {
+                        [v] => Some((v,1)),
+                        [v,w] => Some((v,w)),
+                        _ => None })
+                    .filter(|x| x.is_some())
+                    .map(|x| x.unwrap())
+                    .collect();
+                match nums.as_slice() {
+                    [(tail,_), heads..] => return heads.iter().map(|x| { let (h,w) = *x; (tail,h,w) }).collect::<Vec<(uint,uint,uint)>>(),
+                    _ => Vec::<(uint,uint,uint)>::new()
                 }
             },
-            None => return None,
+            None => return Vec::<(uint,uint,uint)>::new(),
         }
     }
 
@@ -72,9 +74,10 @@ impl Graph {
         let path = Path::new(filename);
         let mut file = BufferedReader::new(File::open(&path));
 
-        let n: Vec<(uint,uint,uint)> = file.lines()
-            .map(|s| Graph::edge_from_string(s.ok()))
-            .filter(|e| e.is_some()).map(|e| e.unwrap()).collect();
+        let mut n: Vec<(uint,uint,uint)> = Vec::new();
+        for e in file.lines().map(|s| Graph::edges_from_string(s.ok())) {
+            n.push_all(e.as_slice());
+        }
 
         let mut graph = Graph::new();
         for e in n.iter() {
@@ -145,7 +148,6 @@ impl Graph {
 
         for i in keys.iter().rev() {
             if !visited.contains(i) {
-//                self.dfs_recur(*i, &mut visited, |_| {)", n)}, |n| { t = t + 1; finish[n] = t; }, false);
                 self.dfs_iter(*i, &mut visited, |_| {}, |n| { t = t + 1; finish[n] = t; }, false);
             }
         }
@@ -160,13 +162,10 @@ impl Graph {
         fin.as_mut_slice().sort_by(|x,y| { let (_,a) = *x; let (_,b) = *y; b.cmp(a) });
         for i in fin.iter().map(|x| { let (n,_) = *x; n} ).filter(|x| *x != 0u) {
             if !visited.contains(&i) {
-//                self.dfs_recur(i, &mut visited, |n| { if !leader.contains_key(&i) { leader.insert(i, Vec::new()); () }
-//                                                      leader.find_mut(&i).map(|v| v.push(n)); () }, |_| {}, true);
                 self.dfs_iter(i, &mut visited, |n| { if !leader.contains_key(&i) { leader.insert(i, Vec::new()); () }
                                                       leader.find_mut(&i).map(|v| v.push(n)); () }, |_| {}, true);
             }
         }
-//        println!("Leader: {}", leader);
         println!("# leader: {}", leader.len());
         leader
     }
@@ -188,6 +187,94 @@ impl Graph {
     }
     pub fn find(&self, id: &uint) -> Option<&Node> {
         self.nodes.find(id)
+    }
+
+    fn cmp(a: &(uint,Option<uint>), b:&(uint,Option<uint>)) -> Ordering {
+        let (_,a) = *a;
+        let (_,b) = *b;
+        if a.is_none() {
+            return Greater
+        } else if b.is_none() {
+            return Less
+        } else {
+            let a = a.unwrap();
+            let b = b.unwrap();
+            return a.cmp(&b);
+        }
+    }
+
+    fn do_update(edges: Vec<(uint,uint)>, length: uint, to_visit: &mut Vec<(uint,Option<uint>)>) {
+        let mut edge_map: HashMap<uint,(uint,Option<uint>)> = HashMap::new();
+        for edge in edges.iter() {
+            let (head, weight) = *edge;
+            edge_map.insert(head, (head, Some(length + weight)));
+        }
+
+        for i in range(0, to_visit.len()) {
+            let (head, _) = (*to_visit)[i];
+            match edge_map.find(&head) {
+                Some(weight) => {
+//                    println!("   matched {}", head);
+                    match Graph::cmp(&(*to_visit)[i], weight) {
+                        Greater => {
+                            (*to_visit)[i] = *weight
+                        },
+                        _ => {},
+                    }
+                },
+                None => {}
+            }
+        }
+    }
+
+    pub fn calculate_shortest_path(&self, source: uint, destination: uint) -> Option<uint> {
+        if source == destination { return Some(0u) }
+        let ref nodes = self.nodes;
+
+        let cmp = |a:&(uint,Option<uint>),b:&(uint,Option<uint>)| {
+            let (_,a) = *a;
+            let (_,b) = *b;
+            if a.is_none() {
+                return Greater
+            } else if b.is_none() {
+                return Less
+            } else {
+                let a = a.unwrap();
+                let b = b.unwrap();
+                return a.cmp(&b);
+            }
+        };
+
+        let mut visited: HashMap<uint,uint> = HashMap::new();
+
+        visited.insert(source, 0u);
+
+        let mut to_visit: Vec<(uint,Option<uint>)> = Vec::new();
+        for n in nodes.keys() {
+            to_visit.push((*n, None));
+        }
+
+        Graph::do_update(nodes.find(&source).map_or(Vec::new(), |x| x.outgoing.clone()), 0u, &mut to_visit);
+
+        heap::make_heap(&mut to_visit, |a,b| cmp(a,b));
+
+//        println!("Initial: {}", to_visit);
+
+        while !to_visit.is_empty() && !visited.contains_key(&destination) {
+            heap::pop_heap(&mut to_visit, |a,b| cmp(a,b));
+            let (head, length) = to_visit.pop().unwrap();
+            match length {
+                Some(length) => {
+                    visited.insert(head, length);
+                    Graph::do_update(nodes.find(&head).map_or(Vec::new(), |x| x.outgoing.clone()), length, &mut to_visit);
+                },
+                None => fail!("Popped unreachable node {}", head),
+            }
+            heap::make_heap(&mut to_visit, |a,b| cmp(a,b));
+
+//            println!("Intermediate: {}", to_visit);
+        }
+        visited.find(&destination).map_or(None, |x| Some(*x))
     }
 }
 

@@ -1,6 +1,12 @@
+extern crate problems;
 
 use std::io::BufferedReader;
 use std::io::File;
+
+use problems::sort::quicksort::quick_sort;
+use problems::sort::quicksort::pivot_first;
+use problems::sort::quicksort::pivot_last;
+use problems::sort::quicksort::pivot_median;
 
 fn load_data(filename: &str) -> Vec<int> {
     let path = Path::new(filename);
@@ -10,70 +16,6 @@ fn load_data(filename: &str) -> Vec<int> {
         .map(|x| x.unwrap()).collect();
 
     nums
-}
-fn pivot_first(_: &[int]) -> uint {
-    0
-}
-
-fn pivot_last(v: &[int]) -> uint {
-    v.len() - 1
-}
-
-fn max (v: &[int], a: uint, b: uint) -> uint {
-    if v[a] >= v[b] { return a } else { return b };
-}
-
-fn min (v: &[int], a: uint, b: uint) -> uint {
-    if v[a] <= v[b] { return a } else { return b };
-}
-
-fn pivot_median(v: &[int]) -> uint {
-    let len = v.len();
-
-    if len == 1 { return 0 }
-    else if len == 2 { return min(v, 0,1) }
-
-    let mid = if (len % 2) == 0 { (len / 2) - 1 } else { len / 2 };
-
-    let median = max(v, min(v, 0,mid), min(v, max(v, 0,mid),len - 1));
-
-//    println!("Len {}, first {} ({}), mid {} ({}), last {} ({}), median {} ({})",
-//             len, v[0u], 0u, v[mid], mid, v[len - 1], len - 1, v[median], median);
-
-    median
-}
-
-fn partition(v: &mut[int], choose_pivot: |&[int]|->uint) -> uint {
-    let len = v.len();
-    let pivot_index = choose_pivot(v);
-
-    v.swap(pivot_index, 0);
-
-    let mut store_index = 1;
-    for i in range(1, len) {
-        if v[i] < v[0] {
-            v.swap(i, store_index);
-            store_index += 1;
-        }
-    }
-
-    v.swap(store_index - 1, 0);
-    store_index - 1
-}
-
-fn quick_sort(v: &mut [int], cmp: |uint|, choose_pivot: |&[int]|->uint) {
-    let len = v.len();
-    if  len < 2 {
-        return
-    }
-    let pivot_index = partition(v, |v| choose_pivot(v));
-
-    cmp(len - 1);
-
-//    println!("pivot: {}:   {} and {}", v[pivot_index], v.slice(0, pivot_index), v.slice(pivot_index + 1, len));
-
-    quick_sort(v.slice_mut(0, pivot_index), |x| cmp(x), |v| choose_pivot(v));
-    quick_sort(v.slice_mut(pivot_index + 1, len), |x| cmp(x), |v| choose_pivot(v));
 }
 
 fn main() {
